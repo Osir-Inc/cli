@@ -1,0 +1,55 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Extract version
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Build all platforms
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          LDFLAGS="-s -w -X main.version=${VERSION}"
+          mkdir -p dist
+
+          GOOS=linux   GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o dist/osir-linux-amd64 .
+          GOOS=linux   GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o dist/osir-linux-arm64 .
+          GOOS=darwin  GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o dist/osir-darwin-amd64 .
+          GOOS=darwin  GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o dist/osir-darwin-arm64 .
+          GOOS=windows GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o dist/osir-windows-amd64.exe .
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum osir-* > checksums.txt
+          cat checksums.txt
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist/osir-linux-amd64
+            dist/osir-linux-arm64
+            dist/osir-darwin-amd64
+            dist/osir-darwin-arm64
+            dist/osir-windows-amd64.exe
+            dist/checksums.txt

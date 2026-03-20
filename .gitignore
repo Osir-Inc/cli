@@ -1,0 +1,29 @@
+# Binaries
+osir
+osir.exe
+cli.exe
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Build output
+dist/
+docs/*
+
+# Test binary
+*.test
+
+# Go workspace
+go.work
+go.work.sum
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+/IMPROVEMENTS.md
+/PROGRESS.md
+/openapi.yaml
