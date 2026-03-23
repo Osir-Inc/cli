@@ -158,4 +158,4 @@ make build-all         # cross-compile for 5 platforms
 
 ## License
 
-Proprietary. Copyright OSIR Inc.
+Proprietary. Copyright OSIR Pty Ltd.

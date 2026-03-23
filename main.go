@@ -9,7 +9,7 @@ import (
 	"github.com/osir/cli/cmd"
 )
 
-var version = "1.0.0"
+var version = "1.0.1"
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

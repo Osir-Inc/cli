@@ -1,4 +1,4 @@
-VERSION := 1.0.0
+VERSION := 1.0.1
 BINARY := osir
 LDFLAGS := -s -w -X main.version=$(VERSION)
 DIST := dist
