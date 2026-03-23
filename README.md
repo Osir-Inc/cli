@@ -36,7 +36,7 @@ osir> dns create coolstartup.io A coolstartup.io 192.0.2.1
 
 ### 1. Install
 
-**Download a pre-built binary** from the [latest release](https://git.newventures.al/Osir/cli/releases):
+**Download a pre-built binary** from the [latest release](https://github.com/Osir-Inc/cli/releases):
 
 | Platform | Binary |
 |----------|--------|
@@ -48,7 +48,7 @@ osir> dns create coolstartup.io A coolstartup.io 192.0.2.1
 
 ```bash
 # Download, install, verify
-curl -L -o osir https://git.newventures.al/Osir/cli/releases/download/v1.0.1/osir-linux-amd64
+curl -L -o osir https://github.com/Osir-Inc/cli/releases/download/v1.0.1/osir-linux-amd64
 chmod +x osir
 sudo mv osir /usr/local/bin/osir
 osir --version
@@ -57,7 +57,7 @@ osir --version
 **Or build from source** (requires Go 1.23+):
 
 ```bash
-git clone https://git.newventures.al/Osir/cli.git osir-cli
+git clone https://github.com/Osir-Inc/cli.git osir-cli
 cd osir-cli
 make build        # builds ./osir for current platform
 make build-all    # cross-compiles to dist/ for all 5 platforms
