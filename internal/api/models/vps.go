@@ -112,5 +112,5 @@ type VpsInstanceInfo struct {
 	IPv6Gateway          string `json:"ipv6Gateway,omitempty"`
 	ControlPanelUrl      string `json:"controlPanelUrl,omitempty"`
 	Message              string `json:"message,omitempty"`
-	VirtfusionInstanceID int    `json:"virtfusionInstanceId,omitempty"`
+	VirtfusionInstanceID string `json:"virtfusionInstanceId,omitempty"`
 }
