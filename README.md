@@ -25,7 +25,7 @@ osir> dns create coolstartup.io A coolstartup.io 192.0.2.1
 - **76 commands** across 11 command groups -- domains, DNS, VPS hosting, billing, contacts, audit, accounts, catalog, suggestions, and more
 - **Interactive shell** (`osir shell`) -- Junos/Arista-style REPL with Tab completion, `?` help, and persistent command history
 - **Single binary** -- no runtime, no dependencies, just copy and run
-- **Cross-platform** -- Linux (amd64/arm64), macOS (Intel/Apple Silicon), Windows
+- **Cross-platform** -- Linux (x86_64/arm64), macOS (Intel/Apple Silicon), Windows
 - **Two auth methods** -- OAuth 2.0 device flow (headless-safe) and username/password
 - **JSON output** -- every command supports `-o json` for scripting and automation
 - **Resilient** -- automatic retry with exponential backoff on 5xx errors, configurable timeout
@@ -40,15 +40,15 @@ osir> dns create coolstartup.io A coolstartup.io 192.0.2.1
 
 | Platform | Binary |
 |----------|--------|
-| Linux x86_64 | `osir-linux-amd64` |
+| Linux x86_64 | `osir-linux-x86_64` |
 | Linux ARM64 | `osir-linux-arm64` |
-| macOS Intel | `osir-darwin-amd64` |
+| macOS Intel | `osir-darwin-x86_64` |
 | macOS Apple Silicon | `osir-darwin-arm64` |
-| Windows x86_64 | `osir-windows-amd64.exe` |
+| Windows x86_64 | `osir-windows-x86_64.exe` |
 
 ```bash
 # Download, install, verify
-curl -L -o osir https://github.com/Osir-Inc/cli/releases/download/v1.0.1/osir-linux-amd64
+curl -L -o osir https://github.com/Osir-Inc/cli/releases/download/v1.0.1/osir-linux-x86_64
 chmod +x osir
 sudo mv osir /usr/local/bin/osir
 osir --version
