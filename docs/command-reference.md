@@ -619,13 +619,54 @@ osir vps order --package <NAME> --hostname <hostname> [flags]
 |------|------|----------|-------------|
 | `--package` | string | Yes | Package name (e.g., ZANA-S, ZANA-M, ZANA-L) |
 | `--hostname` | string | Yes | Hostname for the instance |
-| `--payment-term` | string | No | Payment term (MONTHLY, QUARTERLY, SEMI_ANNUAL, ANNUAL, BIENNIAL, TRIENNIAL) |
+| `--payment-term` | string | No | Payment term (MONTHLY, SEMI_ANNUAL, ANNUAL, BIENNIAL, TRIENNIAL) |
 | `--location` | string | No | Datacenter location name (e.g., Nueremberg) |
-| `--root-password` | string | No | Root password for the instance |
+| `--os` | int | No | OS template id to install. **Omit and the server is created with NO operating system.** Resolve with `vps os-templates`. |
+| `--ssh-key` | int | No | Stored SSH key id to inject during the install (repeatable) |
 
 ```bash
-osir vps order --package ZANA-S --hostname web01
+osir vps order --package ZANA-S --hostname web01 --os 46 --ssh-key 3
 osir vps order --package ZANA-L --hostname db01 --payment-term ANNUAL --location Nueremberg
+```
+
+### vps os-templates
+
+List the operating systems installable on an instance. Template ids are per-install and change when
+templates are re-imported — always look one up rather than reusing a remembered id.
+
+```bash
+osir vps os-templates <instanceId> [--include-eol]
+```
+
+### vps build
+
+Install an operating system on an instance. **On a server that already has one this ERASES ALL DATA**
+and cannot be undone; the CLI makes you type the hostname to confirm (`--yes` skips it). The install
+is asynchronous — poll `vps info` until `Build State` is `COMPLETE`. Retrying a failed install is free.
+
+```bash
+osir vps build <instanceId> --os <templateId> [--ssh-key <id>] [--hostname <name>] [--swap <mb>] [--yes]
+```
+
+| Flag | Type | Required | Description |
+|------|------|----------|-------------|
+| `--os` | int | Yes | OS template id to install |
+| `--ssh-key` | int | No | Stored SSH key id to inject (repeatable) |
+| `--hostname` | string | No | Hostname to build with (defaults to the current one) |
+| `--swap` | float | No | Swap in MB (0 = registry default) |
+| `--yes` | bool | No | Skip the confirmation prompt |
+
+### vps ssh-keys
+
+Manage the SSH public keys installed on your servers. Keys are injected **during the OS install**, so
+store one before ordering or building — a key added afterwards does not appear on an existing server.
+Storing a key you already have is idempotent and returns the existing one.
+
+```bash
+osir vps ssh-keys list
+osir vps ssh-keys add --name laptop --key-file ~/.ssh/id_ed25519.pub
+osir vps ssh-keys add --name ci --key "ssh-ed25519 AAAAC3Nza... deploy@ci"
+osir vps ssh-keys rm <keyId>
 ```
 
 ### vps delete

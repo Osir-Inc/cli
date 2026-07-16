@@ -6,11 +6,11 @@ Download the latest release from the [Releases page](https://github.com/Osir-Inc
 
 | Platform | Architecture | Binary |
 |----------|-------------|--------|
-| Linux | x86_64 | `osir-linux-amd64` |
+| Linux | x86_64 | `osir-linux-x86_64` |
 | Linux | ARM64 (Raspberry Pi, Graviton) | `osir-linux-arm64` |
-| macOS | Intel | `osir-darwin-amd64` |
+| macOS | Intel | `osir-darwin-x86_64` |
 | macOS | Apple Silicon (M1/M2/M3/M4) | `osir-darwin-arm64` |
-| Windows | x86_64 | `osir-windows-amd64.exe` |
+| Windows | x86_64 | `osir-windows-x86_64.exe` |
 
 Each release includes a `checksums.txt` file for integrity verification.
 
@@ -18,20 +18,20 @@ Each release includes a `checksums.txt` file for integrity verification.
 
 ```bash
 # Download the latest release (replace with your platform and version)
-curl -L -o osir https://github.com/Osir-Inc/cli/releases/download/v1.0.0/osir-linux-amd64
+curl -L -o osir https://github.com/Osir-Inc/cli/releases/download/v1.1.0/osir-linux-x86_64
 chmod +x osir
 sudo mv osir /usr/local/bin/osir
 
 # Verify
 osir --version
-# osir 1.0.0
+# osir 1.1.0
 ```
 
 If you don't have root access, install to your home directory:
 
 ```bash
 mkdir -p ~/bin
-mv osir-linux-amd64 ~/bin/osir
+mv osir-linux-x86_64 ~/bin/osir
 chmod +x ~/bin/osir
 echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
 source ~/.bashrc
@@ -39,7 +39,7 @@ source ~/.bashrc
 
 ### Windows
 
-1. Download `osir-windows-amd64.exe`
+1. Download `osir-windows-x86_64.exe`
 2. Rename it to `osir.exe`
 3. Move it to a directory in your PATH (e.g., `C:\Users\<you>\bin\`)
 4. Or add the directory to your PATH environment variable
@@ -50,7 +50,7 @@ From PowerShell:
 # Add to user PATH (one-time)
 $binDir = "$env:USERPROFILE\bin"
 New-Item -ItemType Directory -Path $binDir -Force
-Move-Item osir-windows-amd64.exe "$binDir\osir.exe"
+Move-Item osir-windows-x86_64.exe "$binDir\osir.exe"
 [Environment]::SetEnvironmentVariable("Path", "$binDir;" + [Environment]::GetEnvironmentVariable("Path", "User"), "User")
 ```
 
@@ -73,21 +73,21 @@ make test
 # Cross-compile for all 5 platforms
 make build-all
 # Outputs to dist/:
-#   dist/osir-linux-amd64
+#   dist/osir-linux-x86_64
 #   dist/osir-linux-arm64
-#   dist/osir-darwin-amd64
+#   dist/osir-darwin-x86_64
 #   dist/osir-darwin-arm64
-#   dist/osir-windows-amd64.exe
+#   dist/osir-windows-x86_64.exe
 ```
 
 ### Build for a specific platform
 
 ```bash
-GOOS=linux   GOARCH=amd64 go build -ldflags "-s -w -X main.version=1.0.0" -o osir-linux-amd64 .
-GOOS=linux   GOARCH=arm64 go build -ldflags "-s -w -X main.version=1.0.0" -o osir-linux-arm64 .
-GOOS=darwin  GOARCH=amd64 go build -ldflags "-s -w -X main.version=1.0.0" -o osir-darwin-amd64 .
-GOOS=darwin  GOARCH=arm64 go build -ldflags "-s -w -X main.version=1.0.0" -o osir-darwin-arm64 .
-GOOS=windows GOARCH=amd64 go build -ldflags "-s -w -X main.version=1.0.0" -o osir-windows-amd64.exe .
+GOOS=linux   GOARCH=amd64 go build -ldflags "-s -w -X main.version=1.1.0" -o osir-linux-x86_64 .
+GOOS=linux   GOARCH=arm64 go build -ldflags "-s -w -X main.version=1.1.0" -o osir-linux-arm64 .
+GOOS=darwin  GOARCH=amd64 go build -ldflags "-s -w -X main.version=1.1.0" -o osir-darwin-x86_64 .
+GOOS=darwin  GOARCH=arm64 go build -ldflags "-s -w -X main.version=1.1.0" -o osir-darwin-arm64 .
+GOOS=windows GOARCH=amd64 go build -ldflags "-s -w -X main.version=1.1.0" -o osir-windows-x86_64.exe .
 ```
 
 The `-s -w` flags strip debug symbols, reducing binary size by ~30%.
@@ -98,7 +98,7 @@ The CLI is designed for headless servers where only SSH access is available.
 
 ```bash
 # 1. Upload the binary
-scp dist/osir-linux-amd64 user@server:/usr/local/bin/osir
+scp dist/osir-linux-x86_64 user@server:/usr/local/bin/osir
 
 # 2. Make executable
 ssh user@server chmod +x /usr/local/bin/osir
@@ -115,7 +115,7 @@ ssh user@server osir auth login --device
 
 ```bash
 for server in web01 web02 db01 cache01; do
-  scp dist/osir-linux-amd64 user@$server:/usr/local/bin/osir
+  scp dist/osir-linux-x86_64 user@$server:/usr/local/bin/osir
   ssh user@$server chmod +x /usr/local/bin/osir
 done
 ```
@@ -126,10 +126,10 @@ Replace the binary. Credentials are preserved across updates (stored in `~/.osir
 
 ```bash
 # Remote server
-scp dist/osir-linux-amd64 user@server:/usr/local/bin/osir
+scp dist/osir-linux-x86_64 user@server:/usr/local/bin/osir
 
 # Local
-sudo mv osir-linux-amd64 /usr/local/bin/osir
+sudo mv osir-linux-x86_64 /usr/local/bin/osir
 ```
 
 ## Shell Completion Setup

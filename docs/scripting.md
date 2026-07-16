@@ -96,7 +96,7 @@ done
 
 ```bash
 for server in web01 web02 db01 cache01; do
-  scp dist/osir-linux-amd64 user@$server:/usr/local/bin/osir
+  scp dist/osir-linux-x86_64 user@$server:/usr/local/bin/osir
   ssh user@$server chmod +x /usr/local/bin/osir
 done
 ```
@@ -128,7 +128,7 @@ jobs:
     steps:
       - name: Install OSIR CLI
         run: |
-          curl -L -o osir https://releases.osir.com/osir-linux-amd64
+          curl -L -o osir https://github.com/Osir-Inc/cli/releases/download/v1.1.0/osir-linux-x86_64
           chmod +x osir
           sudo mv osir /usr/local/bin/
 

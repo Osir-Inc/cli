@@ -75,7 +75,7 @@ func TestNewRootCmd_SubcommandCounts(t *testing.T) {
 		{"account", 2},
 		{"catalog", 2},
 		{"suggest", 7},
-		{"vps", 10},
+		{"vps", 13}, // + os-templates, build, ssh-keys
 		{"auth", 3},
 	}
 

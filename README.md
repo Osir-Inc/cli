@@ -6,7 +6,7 @@ Manage domains, DNS records, billing, contacts, and more -- from your terminal.
 
 ```
 $ osir shell
-OSIR Interactive Shell v1.0.1
+OSIR Interactive Shell v1.1.0
 Type 'help' for commands, Tab or '?' for completions, 'exit' to quit.
 
 osir> domain check coolstartup.io
@@ -22,7 +22,8 @@ osir> dns create coolstartup.io A coolstartup.io 192.0.2.1
 
 ## Features
 
-- **76 commands** across 11 command groups -- domains, DNS, VPS hosting, billing, contacts, audit, accounts, catalog, suggestions, and more
+- **73 commands** across 11 command groups -- domains, DNS, VPS hosting, billing, contacts, audit, accounts, catalog, suggestions, and more
+- **VPS provisioning end to end** -- order a server, install an OS (`vps build`), and manage the SSH keys injected at install time (`vps ssh-keys`)
 - **Interactive shell** (`osir shell`) -- Junos/Arista-style REPL with Tab completion, `?` help, and persistent command history
 - **Single binary** -- no runtime, no dependencies, just copy and run
 - **Cross-platform** -- Linux (x86_64/arm64), macOS (Intel/Apple Silicon), Windows
@@ -48,7 +49,7 @@ osir> dns create coolstartup.io A coolstartup.io 192.0.2.1
 
 ```bash
 # Download, install, verify
-curl -L -o osir https://github.com/Osir-Inc/cli/releases/download/v1.0.1/osir-linux-x86_64
+curl -L -o osir https://github.com/Osir-Inc/cli/releases/download/v1.1.0/osir-linux-x86_64
 chmod +x osir
 sudo mv osir /usr/local/bin/osir
 osir --version
@@ -96,8 +97,7 @@ osir shell
 | [Installation Guide](docs/installation.md) | All installation methods, deploying to servers, updating |
 | [Getting Started](docs/getting-started.md) | First-time setup walkthrough with examples |
 | [Interactive Shell](docs/interactive-shell.md) | Using the Junos-style interactive shell mode |
-| [Command Reference](docs/command-reference.md) | Complete reference for all 76 commands |
-| [Configuration](docs/configuration.md) | Environment variables, credentials, multi-environment setup |
+| [Command Reference](docs/command-reference.md) | Complete reference for all 73 commands |
 | [Scripting & Automation](docs/scripting.md) | JSON output, batch operations, cron jobs, CI/CD |
 
 ## Command Groups
@@ -109,7 +109,7 @@ osir shell
 | `dns` | 11 | List, get, create, update, delete, zone-init, zone-exists, fix-soa, dnssec-status, dnssec-enable, dnssec-disable |
 | `billing` | 12 | Balance, invoices, payments, pricing |
 | `contact` | 6 | Create, update, delete registrant contacts |
-| `vps` | 10 | Browse packages, order, manage instances |
+| `vps` | 13 | Browse packages, order, manage instances, install an OS, manage SSH keys |
 | `audit` | 3 | Recent activity, domain audit, failures |
 | `account` | 2 | Profile and account summary |
 | `catalog` | 2 | Browse TLDs, servers |
@@ -133,7 +133,7 @@ com.osir.cli/
 │   ├── account.go           # Account management
 │   ├── catalog.go           # Product catalog
 │   ├── suggest.go           # Domain name suggestions
-│   ├── vps.go               # VPS hosting management (10 subcommands)
+│   ├── vps.go               # VPS hosting management (13 subcommands)
 │   └── completion.go        # Shell completion scripts
 ├── internal/
 │   ├── api/                 # Backend interface + HTTP client
@@ -151,7 +151,7 @@ com.osir.cli/
 
 ```bash
 go build -o osir .     # build
-go test ./...          # run tests (43 tests)
+go test ./...          # run tests (45 tests)
 go vet ./...           # static analysis
 make build-all         # cross-compile for 5 platforms
 ```

@@ -95,6 +95,13 @@ type Backend interface {
 	ChangeVpsPaymentTerm(ctx context.Context, id string, req models.VpsPaymentTermChangeRequest) (json.RawMessage, error)
 	GetVpsPanelLogin(ctx context.Context, id string) (*models.VpsPanelLoginResponse, error)
 
+	// VPS OS build
+	GetVpsOsTemplates(ctx context.Context, instanceID string, includeEol bool) ([]models.VpsOsTemplate, error)
+	BuildVpsInstance(ctx context.Context, id string, req models.VpsBuildRequest) (*models.VpsBuildStatus, error)
+	StoreVpsSshKey(ctx context.Context, req models.VpsSshKeyCreateRequest) (*models.VpsSshKey, error)
+	ListVpsSshKeys(ctx context.Context) ([]models.VpsSshKey, error)
+	DeleteVpsSshKey(ctx context.Context, keyID int) error
+
 	// SSE
 	ListenSSE(ctx context.Context, path string, events chan<- SSEEvent) error
 }

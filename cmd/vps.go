@@ -1,14 +1,43 @@
 package cmd
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/osir/cli/internal/api/models"
 	"github.com/spf13/cobra"
 )
+
+// expandHome resolves a leading ~ so --key-file ~/.ssh/id_ed25519.pub works: the shell expands it
+// for interactive use, but not when the flag is quoted or the CLI is driven from a script.
+func expandHome(path string) string {
+	// Only "~" and "~/..." — "~user/..." means another user's home, which we cannot resolve and must
+	// not silently rewrite to $HOME/user/...
+	if path != "~" && !strings.HasPrefix(path, "~/") {
+		return path
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return path
+	}
+	return filepath.Join(home, strings.TrimPrefix(path, "~"))
+}
+
+// confirmHostname makes the user type the hostname before a destructive rebuild. A y/N prompt is too
+// easy to hit on the wrong server; typing the name proves they know which box they are wiping.
+func confirmHostname(app *App, hostname string) bool {
+	app.Output.Printf("Type the hostname (%s) to confirm: ", hostname)
+	line, err := bufio.NewReader(os.Stdin).ReadString('\n')
+	if err != nil {
+		return false
+	}
+	return strings.TrimSpace(line) == hostname
+}
 
 // resolveInstanceID resolves a short or full instance ID by prefix-matching
 // against the user's instance list. Returns the full UUID.
@@ -355,22 +384,29 @@ Find instance IDs with 'vps list'.`,
 The --package flag accepts the package NAME (e.g. ZANA-S, ZANA-M, ZANA-L) or UUID.
 The --location flag accepts the location name (e.g. Nueremberg), city, or UUID.
 
-Payment terms: MONTHLY (default), QUARTERLY, SEMI_ANNUAL, ANNUAL, BIENNIAL, TRIENNIAL
+Payment terms: MONTHLY (default), SEMI_ANNUAL, ANNUAL, BIENNIAL, TRIENNIAL
+
+Pass --os to have the operating system installed as part of the order, and --ssh-key so you can
+log in once it finishes. Without --os the server is created with NO operating system.
 
 Workflow:
-  1. Browse plans:     osir vps packages
-  2. Browse locations: osir vps locations
-  3. Order:            osir vps order --package ZANA-S --hostname myserver`,
+  1. Store your key:   osir vps ssh-keys add --name laptop --key-file ~/.ssh/id_ed25519.pub
+  2. Browse plans:     osir vps packages
+  3. Browse locations: osir vps locations
+  4. Find an OS id:    osir vps os-templates <anyInstanceId>
+  5. Order:            osir vps order --package ZANA-S --hostname myserver --os 46 --ssh-key 3
+  6. Watch it build:   osir vps info <instanceId>   (until Build State is COMPLETE)`,
 		Example: `  osir vps order --package ZANA-S --hostname myserver
   osir vps order --package ZANA-M --hostname web01 --payment-term ANNUAL
-  osir vps order --package ZANA-L --hostname db01 --location Nueremberg --root-password "S3cur3!"`,
+  osir vps order --package ZANA-L --hostname db01 --location Nueremberg --os 46 --ssh-key 3`,
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			return []string{
 				"--package\tPackage name, e.g. ZANA-S (required)",
 				"--hostname\tHostname for the VPS (required)",
-				"--payment-term\tMONTHLY, QUARTERLY, SEMI_ANNUAL, ANNUAL, BIENNIAL, TRIENNIAL",
+				"--payment-term\tMONTHLY, SEMI_ANNUAL, ANNUAL, BIENNIAL, TRIENNIAL",
 				"--location\tLocation name, e.g. Nueremberg",
-				"--root-password\tRoot password for the VPS",
+				"--os\tOS template id to install (see 'vps os-templates')",
+				"--ssh-key\tSSH key id to install (repeatable)",
 			}, cobra.ShellCompDirectiveNoFileComp
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -381,7 +417,8 @@ Workflow:
 			hostname, _ := cmd.Flags().GetString("hostname")
 			paymentTerm, _ := cmd.Flags().GetString("payment-term")
 			locationRef, _ := cmd.Flags().GetString("location")
-			rootPassword, _ := cmd.Flags().GetString("root-password")
+			osID, _ := cmd.Flags().GetInt("os")
+			sshKeyIDs, _ := cmd.Flags().GetIntSlice("ssh-key")
 
 			// Resolve package name → ID
 			pkg, err := resolvePackage(ctx, app, packageRef)
@@ -403,11 +440,22 @@ Workflow:
 			}
 
 			req := models.VpsOrderRequest{
-				PackageID:    pkg.ID,
-				PaymentTerm:  strings.ToUpper(paymentTerm),
-				Hostname:     hostname,
-				LocationID:   locationID,
-				RootPassword: rootPassword,
+				PackageID:         pkg.ID,
+				PaymentTerm:       strings.ToUpper(paymentTerm),
+				Hostname:          hostname,
+				LocationID:        locationID,
+				OperatingSystemID: osID,
+				SSHKeyIDs:         sshKeyIDs,
+			}
+
+			// Ordering without an OS is legal (and was the only behaviour before), but it yields a server
+			// you cannot log in to, so say so rather than letting it look like a finished purchase.
+			if osID == 0 {
+				app.Output.Println("Note: no --os given, so the server will be created with NO operating system.")
+				app.Output.Println("      Install one later with 'osir vps build <instanceId> --os <id>'.")
+			} else if len(sshKeyIDs) == 0 {
+				app.Output.Println("Note: no --ssh-key given. Keys are injected during the install; without one")
+				app.Output.Println("      you may not be able to log in. See 'osir vps ssh-keys add'.")
 			}
 
 			app.Output.Println(fmt.Sprintf("Ordering %s (%d cores, %s RAM, %s/mo) as '%s'...",
@@ -589,18 +637,268 @@ Gives you access to the server console, power controls, OS reinstall, and more.`
 	vpsListCmd.Flags().String("status", "", "Filter: ACTIVE, SUSPENDED, TERMINATED, PENDING")
 	vpsCountCmd.Flags().Bool("active-only", false, "Count only active instances")
 
+	vpsSshKeysCmd := &cobra.Command{
+		Use:   "ssh-keys",
+		Short: "Manage the SSH keys installed on your servers",
+		Long: `Manage SSH public keys stored against your account.
+
+Keys are injected into a server during the OS install, so store one BEFORE ordering or building.
+A key added afterwards does not appear on an already-built server.`,
+	}
+
+	vpsSshKeysListCmd := &cobra.Command{
+		Use:     "list",
+		Short:   "List your stored SSH keys",
+		Aliases: []string{"ls"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			app := getApp(cmd)
+			keys, err := app.Client.ListVpsSshKeys(cmd.Context())
+			if err != nil {
+				app.Output.PrintError(err.Error())
+				return err
+			}
+			if app.Output.IsJSON() {
+				app.Output.PrintResult(keys)
+				return nil
+			}
+			if len(keys) == 0 {
+				app.Output.Println("No SSH keys stored. Add one with 'osir vps ssh-keys add'.")
+				return nil
+			}
+			for _, k := range keys {
+				app.Output.PrintKeyValue(fmt.Sprintf("%d", k.ID),
+					strings.TrimSpace(fmt.Sprintf("%s  %s  %s", k.Name, k.Type, k.Fingerprint)))
+			}
+			return nil
+		},
+	}
+
+	vpsSshKeysAddCmd := &cobra.Command{
+		Use:   "add --name <label> --key-file <path>",
+		Short: "Store an SSH public key",
+		Long: `Store an SSH public key so it can be installed on your servers.
+
+Idempotent: storing a key you already have returns the existing one rather than failing.`,
+		Example: `  osir vps ssh-keys add --name laptop --key-file ~/.ssh/id_ed25519.pub
+  osir vps ssh-keys add --name ci --key "ssh-ed25519 AAAAC3Nza... deploy@ci"`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			app := getApp(cmd)
+			name, _ := cmd.Flags().GetString("name")
+			keyFile, _ := cmd.Flags().GetString("key-file")
+			keyLiteral, _ := cmd.Flags().GetString("key")
+
+			publicKey := strings.TrimSpace(keyLiteral)
+			if keyFile != "" {
+				raw, err := os.ReadFile(expandHome(keyFile))
+				if err != nil {
+					app.Output.PrintError(fmt.Sprintf("Cannot read %s: %v", keyFile, err))
+					return err
+				}
+				publicKey = strings.TrimSpace(string(raw))
+			}
+			if publicKey == "" {
+				err := fmt.Errorf("provide the key with --key-file or --key")
+				app.Output.PrintError(err.Error())
+				return err
+			}
+			// A private key here would be leaked to the server and is never what the user meant.
+			if strings.Contains(publicKey, "PRIVATE KEY") {
+				err := fmt.Errorf("that is a PRIVATE key — pass the .pub file instead")
+				app.Output.PrintError(err.Error())
+				return err
+			}
+
+			key, err := app.Client.StoreVpsSshKey(cmd.Context(),
+				models.VpsSshKeyCreateRequest{Name: name, PublicKey: publicKey})
+			if err != nil {
+				app.Output.PrintError(err.Error())
+				return err
+			}
+			if app.Output.IsJSON() {
+				app.Output.PrintResult(key)
+			} else {
+				app.Output.PrintSuccess(fmt.Sprintf("SSH key '%s' stored with id %d", key.Name, key.ID))
+				if key.Fingerprint != "" {
+					app.Output.PrintKeyValue("Fingerprint", key.Fingerprint)
+				}
+			}
+			return nil
+		},
+	}
+
+	vpsSshKeysRmCmd := &cobra.Command{
+		Use:     "rm <keyId>",
+		Short:   "Delete a stored SSH key",
+		Long:    "Delete a stored SSH key. Servers already built with it keep it — this only stops future installs from using it.",
+		Aliases: []string{"delete"},
+		Args:    cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			app := getApp(cmd)
+			keyID, err := strconv.Atoi(args[0])
+			if err != nil {
+				app.Output.PrintError(fmt.Sprintf("Key id must be a number, got %q (see 'vps ssh-keys list')", args[0]))
+				return err
+			}
+			if err := app.Client.DeleteVpsSshKey(cmd.Context(), keyID); err != nil {
+				app.Output.PrintError(err.Error())
+				return err
+			}
+			app.Output.PrintSuccess(fmt.Sprintf("SSH key %d deleted", keyID))
+			return nil
+		},
+	}
+
+	vpsOsTemplatesCmd := &cobra.Command{
+		Use:     "os-templates <instanceId>",
+		Short:   "List operating systems installable on an instance",
+		Aliases: []string{"os"},
+		Long: `List the operating systems that can be installed on a VPS instance.
+
+Templates are resolved per server, and their ids change when the registry re-imports them — always
+look an id up fresh rather than reusing a remembered one.`,
+		Example: `  osir vps os-templates 7088d366
+  osir vps os-templates 7088d366 --include-eol`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			app := getApp(cmd)
+			ctx := cmd.Context()
+			includeEol, _ := cmd.Flags().GetBool("include-eol")
+
+			instanceID, err := resolveInstanceID(ctx, app, args[0])
+			if err != nil {
+				return err
+			}
+			templates, err := app.Client.GetVpsOsTemplates(ctx, instanceID, includeEol)
+			if err != nil {
+				app.Output.PrintError(err.Error())
+				return err
+			}
+			if app.Output.IsJSON() {
+				app.Output.PrintResult(templates)
+				return nil
+			}
+			if len(templates) == 0 {
+				app.Output.Println("No OS templates available for this instance.")
+				return nil
+			}
+			for _, t := range templates {
+				label := strings.TrimSpace(fmt.Sprintf("%s %s %s", t.Name, t.Version, t.Variant))
+				if t.Eol {
+					label += "  (EOL)"
+				}
+				app.Output.PrintKeyValue(fmt.Sprintf("%d", t.ID), label)
+			}
+			return nil
+		},
+	}
+
+	vpsBuildCmd := &cobra.Command{
+		Use:     "build <instanceId> --os <templateId>",
+		Short:   "Install an operating system on a VPS (ERASES ALL DATA)",
+		Aliases: []string{"reinstall", "rebuild"},
+		Long: `Install an operating system on a VPS instance.
+
+On a server that already has an OS this ERASES ALL DATA on it, including any deployed application,
+and cannot be undone. The install is asynchronous — poll 'osir vps info <instanceId>' and wait for
+Build State to reach COMPLETE before connecting.
+
+Retrying a failed install costs nothing; never re-order a VPS to recover from one.`,
+		Example: `  osir vps os-templates 7088d366
+  osir vps build 7088d366 --os 46 --ssh-key 3
+  osir vps build 7088d366 --os 46 --ssh-key 3 --yes`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			app := getApp(cmd)
+			ctx := cmd.Context()
+
+			osID, _ := cmd.Flags().GetInt("os")
+			sshKeyIDs, _ := cmd.Flags().GetIntSlice("ssh-key")
+			hostname, _ := cmd.Flags().GetString("hostname")
+			swap, _ := cmd.Flags().GetFloat64("swap")
+			assumeYes, _ := cmd.Flags().GetBool("yes")
+
+			instanceID, err := resolveInstanceID(ctx, app, args[0])
+			if err != nil {
+				return err
+			}
+
+			if !assumeYes {
+				inst, err := app.Client.GetVpsInstance(ctx, instanceID)
+				if err != nil {
+					app.Output.PrintError(err.Error())
+					return err
+				}
+				app.Output.Println(fmt.Sprintf(
+					"This ERASES ALL DATA on '%s' (%s) — every file and any deployed application.",
+					inst.Hostname, instanceID))
+				app.Output.Println("It cannot be undone.")
+				if !confirmHostname(app, inst.Hostname) {
+					app.Output.Println("Aborted.")
+					return nil
+				}
+			}
+
+			req := models.VpsBuildRequest{
+				OperatingSystemID: osID,
+				Hostname:          hostname,
+				SSHKeyIDs:         sshKeyIDs,
+			}
+			if swap > 0 {
+				req.Swap = &swap
+			}
+
+			status, err := app.Client.BuildVpsInstance(ctx, instanceID, req)
+			if err != nil {
+				app.Output.PrintError(err.Error())
+				return err
+			}
+			if app.Output.IsJSON() {
+				app.Output.PrintResult(status)
+				return nil
+			}
+			app.Output.PrintSuccess(fmt.Sprintf("OS install queued (%s)", status.BuildState))
+			if status.OsTemplateName != "" {
+				app.Output.PrintKeyValue("Installing", status.OsTemplateName)
+			}
+			app.Output.Println(fmt.Sprintf("Poll with: osir vps info %s", instanceID))
+			return nil
+		},
+	}
+
 	vpsOrderCmd.Flags().String("package", "", "Package name (e.g. ZANA-S) or ID (required)")
 	vpsOrderCmd.Flags().String("hostname", "", "Hostname for the VPS (required)")
-	vpsOrderCmd.Flags().String("payment-term", "MONTHLY", "MONTHLY, QUARTERLY, SEMI_ANNUAL, ANNUAL, BIENNIAL, TRIENNIAL")
+	// No QUARTERLY: the enum has the constant but VpsPackage.getPriceForTerm has no case for it and
+	// throws, so offering it here only produces a 500.
+	vpsOrderCmd.Flags().String("payment-term", "MONTHLY", "MONTHLY, SEMI_ANNUAL, ANNUAL, BIENNIAL, TRIENNIAL")
 	vpsOrderCmd.Flags().String("location", "", "Location name (e.g. Nueremberg) or ID")
-	vpsOrderCmd.Flags().String("root-password", "", "Root password for the VPS")
+	vpsOrderCmd.Flags().Int("os", 0, "OS template id to install (see 'vps os-templates'); omit for no OS")
+	vpsOrderCmd.Flags().IntSlice("ssh-key", nil, "SSH key id to inject at install (repeatable; see 'vps ssh-keys')")
 	_ = vpsOrderCmd.MarkFlagRequired("package")
 	_ = vpsOrderCmd.MarkFlagRequired("hostname")
 
 	vpsChangeTermCmd.Flags().String("term", "", "MONTHLY, QUARTERLY, SEMI_ANNUAL, ANNUAL, BIENNIAL, TRIENNIAL (required)")
 	_ = vpsChangeTermCmd.MarkFlagRequired("term")
 
+	vpsOsTemplatesCmd.Flags().Bool("include-eol", false, "Also show end-of-life templates")
+
+	vpsBuildCmd.Flags().Int("os", 0, "OS template id to install (required)")
+	vpsBuildCmd.Flags().IntSlice("ssh-key", nil, "SSH key id to inject (repeatable)")
+	vpsBuildCmd.Flags().String("hostname", "", "Hostname to build with (defaults to the current one)")
+	vpsBuildCmd.Flags().Float64("swap", 0, "Swap in MB (0 = registry default)")
+	vpsBuildCmd.Flags().Bool("yes", false, "Skip the ERASES ALL DATA confirmation prompt")
+	_ = vpsBuildCmd.MarkFlagRequired("os")
+
+	vpsSshKeysAddCmd.Flags().String("name", "", "Label for the key, e.g. laptop (required)")
+	vpsSshKeysAddCmd.Flags().String("key-file", "", "Path to a .pub file (required unless --key)")
+	vpsSshKeysAddCmd.Flags().String("key", "", "The public key itself, as one line")
+	_ = vpsSshKeysAddCmd.MarkFlagRequired("name")
+
+	vpsSshKeysCmd.AddCommand(vpsSshKeysListCmd, vpsSshKeysAddCmd, vpsSshKeysRmCmd)
+
 	vpsCmd.AddCommand(
+		vpsOsTemplatesCmd,
+		vpsBuildCmd,
+		vpsSshKeysCmd,
 		vpsPackagesCmd,
 		vpsLocationsCmd,
 		vpsListCmd,
@@ -652,6 +950,25 @@ func printVpsInstanceDetail(app *App, inst *models.VpsInstance) {
 	app.Output.PrintKeyValue("Hostname", inst.Hostname)
 	app.Output.PrintKeyValue("Status", inst.Status)
 	app.Output.PrintKeyValue("Provisioning", inst.ProvisioningStatus)
+	if inst.BuildState != "" {
+		app.Output.PrintKeyValue("Build State", inst.BuildState)
+	}
+	if inst.OsTemplateName != "" {
+		app.Output.PrintKeyValue("Operating System", inst.OsTemplateName)
+	}
+	if inst.Built != "" {
+		app.Output.PrintKeyValue("Built", inst.Built)
+	}
+	// UNBUILT is easy to miss next to an ACTIVE/COMPLETED status, and it is the whole reason a new
+	// server can look fine yet refuse every SSH connection.
+	switch inst.BuildState {
+	case "UNBUILT":
+		app.Output.Println("  ↳ No operating system installed. Install one with:")
+		app.Output.Println(fmt.Sprintf("      osir vps build %s --os <templateId>", inst.ID))
+	case "FAILED":
+		app.Output.Println("  ↳ The OS install failed. Retrying is free:")
+		app.Output.Println(fmt.Sprintf("      osir vps build %s --os <templateId>", inst.ID))
+	}
 	if inst.VpsPackage != nil {
 		p := inst.VpsPackage
 		app.Output.PrintKeyValue("Package", fmt.Sprintf("%s (%d cores, %s RAM, %d GB disk)",
