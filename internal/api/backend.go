@@ -96,7 +96,7 @@ type Backend interface {
 	GetVpsPanelLogin(ctx context.Context, id string) (*models.VpsPanelLoginResponse, error)
 
 	// VPS OS build
-	GetVpsOsTemplates(ctx context.Context, instanceID string, includeEol bool) ([]models.VpsOsTemplate, error)
+	GetVpsOsTemplates(ctx context.Context, packageID, instanceID string, includeEol bool) ([]models.VpsOsTemplate, error)
 	BuildVpsInstance(ctx context.Context, id string, req models.VpsBuildRequest) (*models.VpsBuildStatus, error)
 	StoreVpsSshKey(ctx context.Context, req models.VpsSshKeyCreateRequest) (*models.VpsSshKey, error)
 	ListVpsSshKeys(ctx context.Context) ([]models.VpsSshKey, error)

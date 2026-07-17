@@ -3,6 +3,7 @@ package cmd
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -393,9 +394,12 @@ Workflow:
   1. Store your key:   osir vps ssh-keys add --name laptop --key-file ~/.ssh/id_ed25519.pub
   2. Browse plans:     osir vps packages
   3. Browse locations: osir vps locations
-  4. Find an OS id:    osir vps os-templates <anyInstanceId>
+  4. Find an OS id:    osir vps os-templates --package ZANA-S
   5. Order:            osir vps order --package ZANA-S --hostname myserver --os 46 --ssh-key 3
-  6. Watch it build:   osir vps info <instanceId>   (until Build State is COMPLETE)`,
+  6. Watch it build:   osir vps info <instanceId>   (until Build State is COMPLETE)
+
+Ask for the templates of the same package you are ordering: the installable set depends on the
+package, so an id taken from a different one may be refused at install time.`,
 		Example: `  osir vps order --package ZANA-S --hostname myserver
   osir vps order --package ZANA-M --hostname web01 --payment-term ANNUAL
   osir vps order --package ZANA-L --hostname db01 --location Nueremberg --os 46 --ssh-key 3`,
@@ -405,7 +409,7 @@ Workflow:
 				"--hostname\tHostname for the VPS (required)",
 				"--payment-term\tMONTHLY, SEMI_ANNUAL, ANNUAL, BIENNIAL, TRIENNIAL",
 				"--location\tLocation name, e.g. Nueremberg",
-				"--os\tOS template id to install (see 'vps os-templates')",
+				"--os\tOS template id to install (see 'vps os-templates --package <name>')",
 				"--ssh-key\tSSH key id to install (repeatable)",
 			}, cobra.ShellCompDirectiveNoFileComp
 		},
@@ -749,26 +753,61 @@ Idempotent: storing a key you already have returns the existing one rather than 
 	}
 
 	vpsOsTemplatesCmd := &cobra.Command{
-		Use:     "os-templates <instanceId>",
-		Short:   "List operating systems installable on an instance",
+		Use:     "os-templates [instanceId]",
+		Short:   "List installable operating systems, for a package or an instance",
 		Aliases: []string{"os"},
-		Long: `List the operating systems that can be installed on a VPS instance.
+		Long: `List the operating systems that can be installed — either on a package you are about to
+order, or on a VPS instance you already own.
 
-Templates are resolved per server, and their ids change when the registry re-imports them — always
-look an id up fresh rather than reusing a remembered one.`,
-		Example: `  osir vps os-templates 7088d366
+Pass --package to see what a package can install BEFORE ordering it, and feed the id straight into
+'vps order --os'. Pass an instanceId instead to see what an existing server can be reinstalled with.
+Exactly one of the two.
+
+They are not interchangeable: the installable set depends on the package, so an ARM package offers ARM
+templates. Asking with the wrong one lists templates the install would then reject.
+
+Template ids change when the registry re-imports them — always look one up fresh rather than reusing a
+remembered id.`,
+		Example: `  osir vps os-templates --package ZANA-S
+  osir vps os-templates 7088d366
   osir vps os-templates 7088d366 --include-eol`,
-		Args: cobra.ExactArgs(1),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			app := getApp(cmd)
 			ctx := cmd.Context()
 			includeEol, _ := cmd.Flags().GetBool("include-eol")
+			pkgFlag, _ := cmd.Flags().GetString("package")
 
-			instanceID, err := resolveInstanceID(ctx, app, args[0])
-			if err != nil {
+			// Printed, not just returned: the root command sets SilenceErrors and main() exits without
+			// printing, so a bare returned error means the user gets an empty screen and exit 1.
+			if pkgFlag == "" && len(args) == 0 {
+				err := errors.New("pass --package <name> to list what a package can install before " +
+					"ordering, or an instanceId to list what an existing server can be reinstalled with")
+				app.Output.PrintError(err.Error())
 				return err
 			}
-			templates, err := app.Client.GetVpsOsTemplates(ctx, instanceID, includeEol)
+			if pkgFlag != "" && len(args) > 0 {
+				err := errors.New("pass either --package or an instanceId, not both")
+				app.Output.PrintError(err.Error())
+				return err
+			}
+
+			var packageID, instanceID string
+			if pkgFlag != "" {
+				pkg, err := resolvePackage(ctx, app, pkgFlag)
+				if err != nil {
+					return err
+				}
+				packageID = pkg.ID
+			} else {
+				var err error
+				instanceID, err = resolveInstanceID(ctx, app, args[0])
+				if err != nil {
+					return err
+				}
+			}
+
+			templates, err := app.Client.GetVpsOsTemplates(ctx, packageID, instanceID, includeEol)
 			if err != nil {
 				app.Output.PrintError(err.Error())
 				return err
@@ -880,6 +919,7 @@ Retrying a failed install costs nothing; never re-order a VPS to recover from on
 	_ = vpsChangeTermCmd.MarkFlagRequired("term")
 
 	vpsOsTemplatesCmd.Flags().Bool("include-eol", false, "Also show end-of-life templates")
+	vpsOsTemplatesCmd.Flags().String("package", "", "Package name or id — list what it can install before ordering")
 
 	vpsBuildCmd.Flags().Int("os", 0, "OS template id to install (required)")
 	vpsBuildCmd.Flags().IntSlice("ssh-key", nil, "SSH key id to inject (repeatable)")

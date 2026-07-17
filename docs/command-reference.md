@@ -631,12 +631,28 @@ osir vps order --package ZANA-L --hostname db01 --payment-term ANNUAL --location
 
 ### vps os-templates
 
-List the operating systems installable on an instance. Template ids are per-install and change when
-templates are re-imported — always look one up rather than reusing a remembered id.
+List the installable operating systems — for a **package** you are about to order, or for an
+**instance** you already own. Exactly one of the two.
 
 ```bash
-osir vps os-templates <instanceId> [--include-eol]
+osir vps os-templates --package ZANA-S          # before ordering → feed the id to 'vps order --os'
+osir vps os-templates <instanceId>              # reinstalling an existing server
+osir vps os-templates <instanceId> --include-eol
 ```
+
+| Flag / arg | Use it when |
+|---|---|
+| `--package <name\|id>` | Before ordering. The only option that works when you own no VPS yet. |
+| `<instanceId>` | Reinstalling a server you already have. |
+| `--include-eol` | Also show end-of-life templates. |
+
+Ask about the same package you intend to order: the installable set depends on the package (an ARM
+package offers ARM templates), so an id taken from somewhere else may be refused at install time.
+
+Template ids are per-install and change when templates are re-imported — always look one up rather
+than reusing a remembered id.
+
+> Needs backend **v2.9.1+** for `--package`. The `<instanceId>` form works on any version.
 
 ### vps build
 

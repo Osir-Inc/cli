@@ -91,11 +91,21 @@ func (c *Client) OrderVps(ctx context.Context, req models.VpsOrderRequest) (*mod
 	return &result, nil
 }
 
-// GetVpsOsTemplates lists the operating systems installable on one instance. Templates are resolved
-// per server and their ids change on re-import, so they must be looked up fresh — never cache an id.
-func (c *Client) GetVpsOsTemplates(ctx context.Context, instanceID string, includeEol bool) ([]models.VpsOsTemplate, error) {
+// GetVpsOsTemplates lists installable OS templates, keyed by package or by instance. Pass exactly one;
+// the backend rejects both or neither.
+//
+// The two are not interchangeable: the installable set varies with the package spec (an ARM package
+// offers ARM templates), so asking with the wrong key advertises templates the build then rejects.
+// packageId answers "what could I install if I ordered this?" and is the only key available before a
+// first order, since there is no instance yet. Requires backend v2.9.1+.
+func (c *Client) GetVpsOsTemplates(ctx context.Context, packageID, instanceID string, includeEol bool) ([]models.VpsOsTemplate, error) {
 	q := url.Values{}
-	q.Set("instanceId", instanceID)
+	if packageID != "" {
+		q.Set("packageId", packageID)
+	}
+	if instanceID != "" {
+		q.Set("instanceId", instanceID)
+	}
 	if includeEol {
 		q.Set("includeEol", "true")
 	}
