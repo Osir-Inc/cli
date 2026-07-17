@@ -6,7 +6,7 @@ Manage domains, DNS records, billing, contacts, and more -- from your terminal.
 
 ```
 $ osir shell
-OSIR Interactive Shell v1.1.0
+OSIR Interactive Shell v1.2.0
 Type 'help' for commands, Tab or '?' for completions, 'exit' to quit.
 
 osir> domain check coolstartup.io
@@ -49,7 +49,7 @@ osir> dns create coolstartup.io A coolstartup.io 192.0.2.1
 
 ```bash
 # Download, install, verify
-curl -L -o osir https://github.com/Osir-Inc/cli/releases/download/v1.1.0/osir-linux-x86_64
+curl -L -o osir https://github.com/Osir-Inc/cli/releases/latest/download/osir-linux-x86_64
 chmod +x osir
 sudo mv osir /usr/local/bin/osir
 osir --version

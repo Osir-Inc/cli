@@ -9,7 +9,7 @@ osir shell
 ```
 
 ```
-OSIR Interactive Shell v1.1.0
+OSIR Interactive Shell v1.2.0
 Type 'help' for commands, Tab or '?' for completions, 'exit' to quit.
 
 osir>
@@ -104,7 +104,7 @@ The interactive shell creates the `App` (config, auth session, API client) once 
 
 ```
 $ osir shell
-OSIR Interactive Shell v1.1.0
+OSIR Interactive Shell v1.2.0
 Type 'help' for commands, Tab or '?' for completions, 'exit' to quit.
 
 osir> auth login --device

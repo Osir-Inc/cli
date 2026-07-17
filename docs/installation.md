@@ -18,7 +18,7 @@ Each release includes a `checksums.txt` file for integrity verification.
 
 ```bash
 # Download the latest release (replace with your platform and version)
-curl -L -o osir https://github.com/Osir-Inc/cli/releases/download/v1.1.0/osir-linux-x86_64
+curl -L -o osir https://github.com/Osir-Inc/cli/releases/latest/download/osir-linux-x86_64
 chmod +x osir
 sudo mv osir /usr/local/bin/osir
 
