@@ -2,6 +2,8 @@ package auth
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -28,11 +30,21 @@ type TokenErrorResponse struct {
 	ErrorDescription string `json:"error_description"`
 }
 
-// StartDeviceLogin initiates the OAuth 2.0 Device Authorization flow.
+// deviceScopes: the osir:* scopes are optional on the Keycloak client (realm rework 2026-09-01);
+// requesting them keeps tokens valid once the backend enforces per-scope authorization.
+const deviceScopes = "openid osir:read osir:domains osir:dns osir:apps osir:vps osir:mail osir:billing osir:account"
+
+// StartDeviceLogin initiates the OAuth 2.0 Device Authorization flow (with S256 PKCE).
 func (s *Session) StartDeviceLogin(ctx context.Context) (*DeviceCodeResponse, error) {
+	verifier := rand.Text() + rand.Text() // 52 chars, within RFC 7636's 43-128
+	sum := sha256.Sum256([]byte(verifier))
+	s.codeVerifier = verifier
+
 	form := url.Values{
-		"client_id": {s.cfg.ClientID},
-		"scope":     {"openid"},
+		"client_id":             {s.cfg.ClientID},
+		"scope":                 {deviceScopes},
+		"code_challenge":        {base64.RawURLEncoding.EncodeToString(sum[:])},
+		"code_challenge_method": {"S256"},
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
@@ -82,7 +94,8 @@ func (s *Session) PollDeviceToken(ctx context.Context, deviceCode string, interv
 		form := url.Values{
 			"grant_type":  {"urn:ietf:params:oauth:grant-type:device_code"},
 			"client_id":   {s.cfg.ClientID},
-			"device_code": {deviceCode},
+			"device_code":   {deviceCode},
+			"code_verifier": {s.codeVerifier},
 		}
 
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost,

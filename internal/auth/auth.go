@@ -38,6 +38,8 @@ type Session struct {
 	cfg        *config.Config
 	httpClient *http.Client
 	Verbose    bool
+	// PKCE verifier of the pending device login; Keycloak enforces S256 on public clients (2026-09-01).
+	codeVerifier string
 }
 
 func NewSession(cfg *config.Config) *Session {

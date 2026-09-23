@@ -130,7 +130,7 @@ jobs:
         run: |
           # Pinned on purpose: CI should not change underneath you when a new CLI ships.
           # Bump it deliberately. (For a laptop install, use .../releases/latest/download/... instead.)
-          curl -L -o osir https://github.com/Osir-Inc/cli/releases/download/v1.2.0/osir-linux-x86_64
+          curl -L -o osir https://github.com/Osir-Inc/cli/releases/download/v1.2.1/osir-linux-x86_64
           chmod +x osir
           sudo mv osir /usr/local/bin/
 

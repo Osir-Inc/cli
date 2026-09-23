@@ -6,7 +6,7 @@ Manage domains, DNS records, billing, contacts, and more -- from your terminal.
 
 ```
 $ osir shell
-OSIR Interactive Shell v1.2.0
+OSIR Interactive Shell v1.2.1
 Type 'help' for commands, Tab or '?' for completions, 'exit' to quit.
 
 osir> domain check coolstartup.io
