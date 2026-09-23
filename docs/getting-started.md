@@ -32,6 +32,10 @@ Open that URL on **any device** -- your laptop, phone, or a colleague's computer
 
 The device flow supports MFA, SSO, and any identity provider configured in your Keycloak realm.
 
+> If `auth login --device` fails with `Missing parameter: code_challenge_method`, you are on a CLI
+> older than v1.2.1. OSIR's login server now requires PKCE; upgrade the CLI (see
+> [Installation](installation.md)).
+
 ### Username and Password
 
 ```bash
