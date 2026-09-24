@@ -12,6 +12,7 @@ type Formatter struct {
 	jsonMode bool
 	out      io.Writer
 	errOut   io.Writer
+	errored  bool
 }
 
 func New(jsonMode bool) *Formatter {
@@ -22,10 +23,10 @@ func New(jsonMode bool) *Formatter {
 	}
 }
 
-func (f *Formatter) SetOut(w io.Writer)    { f.out = w }
-func (f *Formatter) SetErr(w io.Writer)    { f.errOut = w }
-func (f *Formatter) SetJSON(json bool)     { f.jsonMode = json }
-func (f *Formatter) IsJSON() bool          { return f.jsonMode }
+func (f *Formatter) SetOut(w io.Writer) { f.out = w }
+func (f *Formatter) SetErr(w io.Writer) { f.errOut = w }
+func (f *Formatter) SetJSON(json bool)  { f.jsonMode = json }
+func (f *Formatter) IsJSON() bool       { return f.jsonMode }
 
 func (f *Formatter) PrintResult(v any) {
 	if f.jsonMode {
@@ -43,7 +44,12 @@ func (f *Formatter) PrintSuccess(msg string) {
 	}
 }
 
+// Errored reports whether PrintError has been called, so the caller of a failed command knows
+// whether the user has already been told why.
+func (f *Formatter) Errored() bool { return f.errored }
+
 func (f *Formatter) PrintError(msg string) {
+	f.errored = true
 	if f.jsonMode {
 		data, _ := json.Marshal(map[string]string{"status": "error", "message": msg})
 		fmt.Fprintln(f.errOut, string(data))

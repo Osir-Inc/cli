@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/osir/cli/internal/api"
@@ -120,5 +121,24 @@ func ExecuteContext(ctx context.Context) error {
 	rootCmd := NewRootCmd(nil)
 	// Add shell command only in non-interactive mode
 	addShellCommand(rootCmd)
-	return rootCmd.ExecuteContext(ctx)
+	cmd, err := rootCmd.ExecuteContextC(ctx)
+	if err == nil {
+		return nil
+	}
+	// Commands usually print their own errors, hence SilenceErrors. Anything that failed
+	// without a word would otherwise exit 1 silently: Cobra's own errors (unknown command or
+	// flag, wrong number of arguments), which come before PersistentPreRunE attaches the App,
+	// and command paths that return an error without printing it.
+	var app *App
+	if c := cmd.Context(); c != nil {
+		app, _ = c.Value(appKey).(*App)
+	}
+	switch {
+	case app == nil:
+		output.New(outputFormat == "json").PrintError(
+			fmt.Sprintf("%v\nRun '%s --help' for usage.", err, cmd.CommandPath()))
+	case !app.Output.Errored():
+		app.Output.PrintError(err.Error())
+	}
+	return err
 }
