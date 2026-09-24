@@ -7,6 +7,7 @@ type Config struct {
 	KeycloakURL  string
 	KeycloakRealm string
 	ClientID     string
+	TunnelURL    string
 }
 
 func Load() *Config {
@@ -15,6 +16,7 @@ func Load() *Config {
 		KeycloakURL:   envOrDefault("KEYCLOAK_URL", "https://auth.osir.com"),
 		KeycloakRealm: envOrDefault("KEYCLOAK_REALM", "osir"),
 		ClientID:      envOrDefault("KEYCLOAK_CLIENT_ID", "osir-cli"),
+		TunnelURL:     envOrDefault("OSIR_TUNNEL_SERVER", "https://osir.run"),
 	}
 }
 

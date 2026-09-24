@@ -104,6 +104,7 @@ func NewRootCmd(app *App) *cobra.Command {
 	addCatalogCommands(rootCmd)
 	addSuggestCommands(rootCmd)
 	addVpsCommands(rootCmd)
+	addTunnelCommands(rootCmd)
 	addCompletionCommands(rootCmd)
 
 	return rootCmd

@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -96,6 +97,11 @@ func (s *Session) GetToken(ctx context.Context) (string, error) {
 			if !s.cred.IsExpired() {
 				return s.cred.AccessToken, nil
 			}
+			// Only a rejected refresh token ends the session. A network error or a Keycloak
+			// outage (a laptop waking from sleep, say) must not log the user out.
+			if !errors.Is(err, errRefreshRejected) {
+				return "", fmt.Errorf("cannot refresh your session right now: %w", err)
+			}
 			// Clear stale credentials so the user can log in fresh
 			_ = ClearCredentials()
 			s.cred = nil
@@ -169,6 +175,8 @@ func (s *Session) Logout(ctx context.Context) error {
 	return nil
 }
 
+var errRefreshRejected = errors.New("refresh token rejected")
+
 func (s *Session) refreshToken(ctx context.Context) error {
 	form := url.Values{
 		"grant_type":    {"refresh_token"},
@@ -194,6 +202,11 @@ func (s *Session) refreshToken(ctx context.Context) error {
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 10*1024*1024))
 	if err != nil {
 		return fmt.Errorf("failed to read refresh response: %w", err)
+	}
+	// 400/401 mean Keycloak rejected the refresh token (invalid_grant: expired or revoked).
+	// Anything else, like a 5xx, is Keycloak having a bad moment, not a dead session.
+	if resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusUnauthorized {
+		return fmt.Errorf("%w (HTTP %d): %s", errRefreshRejected, resp.StatusCode, string(body))
 	}
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("token refresh failed (HTTP %d): %s", resp.StatusCode, string(body))

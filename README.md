@@ -6,7 +6,7 @@ Manage domains, DNS records, billing, contacts, and more -- from your terminal.
 
 ```
 $ osir shell
-OSIR Interactive Shell v1.2.1
+OSIR Interactive Shell v1.3.0
 Type 'help' for commands, Tab or '?' for completions, 'exit' to quit.
 
 osir> domain check coolstartup.io
@@ -22,7 +22,7 @@ osir> dns create coolstartup.io A coolstartup.io 192.0.2.1
 
 ## Features
 
-- **73 commands** across 11 command groups -- domains, DNS, VPS hosting, billing, contacts, audit, accounts, catalog, suggestions, and more
+- **74 commands** across 12 command groups -- domains, DNS, VPS hosting, billing, contacts, audit, accounts, catalog, suggestions, tunnels, and more
 - **VPS provisioning end to end** -- order a server, install an OS (`vps build`), and manage the SSH keys injected at install time (`vps ssh-keys`)
 - **Interactive shell** (`osir shell`) -- Junos/Arista-style REPL with Tab completion, `?` help, and persistent command history
 - **Single binary** -- no runtime, no dependencies, just copy and run
@@ -97,7 +97,7 @@ osir shell
 | [Installation Guide](docs/installation.md) | All installation methods, deploying to servers, updating |
 | [Getting Started](docs/getting-started.md) | First-time setup walkthrough with examples |
 | [Interactive Shell](docs/interactive-shell.md) | Using the Junos-style interactive shell mode |
-| [Command Reference](docs/command-reference.md) | Complete reference for all 73 commands |
+| [Command Reference](docs/command-reference.md) | Complete reference for all 74 commands |
 | [Scripting & Automation](docs/scripting.md) | JSON output, batch operations, cron jobs, CI/CD |
 
 ## Command Groups
@@ -114,6 +114,7 @@ osir shell
 | `account` | 2 | Profile and account summary |
 | `catalog` | 2 | Browse TLDs, servers |
 | `suggest` | 7 | AI suggestions, word spinning, prefix/suffix |
+| `tunnel` | 1 | Expose a local web server on a public HTTPS URL |
 | `shell` | 1 | Launch interactive shell |
 | `completion` | 1 | Generate shell completion scripts |
 
@@ -121,7 +122,7 @@ osir shell
 
 ```
 com.osir.cli/
-├── cmd/                     # Cobra commands (11 command groups)
+├── cmd/                     # Cobra commands (12 command groups)
 │   ├── root.go              # Command tree factory, App DI
 │   ├── shell.go             # Interactive shell (reeflective/console)
 │   ├── auth.go              # Authentication commands

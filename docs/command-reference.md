@@ -915,6 +915,39 @@ osir suggest keyword-summary <keyword> [flags]
 
 ---
 
+## Tunnel
+
+### tunnel
+
+Expose a local web server on a public HTTPS URL. The URL is random and temporary: it lives
+as long as the command runs. You must be signed in (`osir auth login`): each tunnel is
+recorded against the account that opened it, so abuse can be traced.
+
+```bash
+osir tunnel 3000                      # forward to http://localhost:3000
+osir tunnel localhost:8080            # same, written out
+osir tunnel https://localhost:8443    # local server that speaks TLS
+osir tunnel 3000 -o json              # machine-readable: prints {"status":"ready","url":...}
+```
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--server` | string | Tunnel edge to use (default `https://osir.run`, env `OSIR_TUNNEL_SERVER`) |
+| `--auth` | string | Auth token, for private edges (env `OSIR_TUNNEL_AUTH`) |
+
+Notes:
+
+- Anyone with the link can reach your local server for as long as the command runs. Only
+  expose what you mean to share.
+- Requests reach your app unchanged, so WebSockets, server-sent events, streaming and large
+  uploads work. Your app sees the public hostname in the `Host` header.
+- If the connection drops, the client reconnects and keeps the same URL when it can. When
+  the edge restarts it says so first and holds your address for 120 seconds.
+- If your local server is down, visitors get a 502 page explaining that the tunnel is up but
+  the app is not.
+
+---
+
 ## Interactive Shell
 
 ### shell
